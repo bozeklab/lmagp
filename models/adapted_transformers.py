@@ -61,7 +61,7 @@ lm_classifier = freeze_model(AutoModelForSequenceClassification.from_pretrained(
 seq_shortener = MHASequenceShortenerWithLN(target_len=256, embed_dim=768, kdim=1280, vdim=1280, num_heads=4, batch_first=True)
 adapted_lm = AdaptedModel(model=lm_classifier, seq_shortener=seq_shortener, embed_dim=768)
 
-x = torch.rand([1,20,1280])
+x = torch.rand([1,5000,1280])
 y = adapted_lm(x)
 
 """

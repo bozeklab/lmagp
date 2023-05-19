@@ -8,7 +8,7 @@ class MHASequenceShortener(nn.Module):
         self.query = nn.Parameter(torch.nn.init.trunc_normal_(torch.empty(1, target_len, ma_kwargs['embed_dim']), 0., 0.2))
 
     def forward(self, x):
-        x = self.multihead_attn(self.query.repeat(x.size(0),1,1), x, x,average_attn_weights=False) #this repeat method works for nested tensors and batched sequences
+        x = self.multihead_attn(self.query.repeat(x.size(0),1,1), x, x,average_attn_weights=False) 
         x = (x[0] + self.query, x[1:])
         return x
 
@@ -51,17 +51,3 @@ def freeze_model(model):
         if any([x in name for x in ['LayerNorm','layer_norm', '.ln_']]):
             param.requires_grad = True
     return model
-
-"""Example:
-
-import torch
-from transformers import AutoModelForSequenceClassification
-
-lm_classifier = freeze_model(AutoModelForSequenceClassification.from_pretrained('roberta-base', num_labels=2))
-seq_shortener = MHASequenceShortenerWithLN(target_len=256, embed_dim=768, kdim=1280, vdim=1280, num_heads=4, batch_first=True)
-adapted_lm = AdaptedModel(model=lm_classifier, seq_shortener=seq_shortener, embed_dim=768)
-
-x = torch.rand([1,5000,1280])
-y = adapted_lm(x)
-
-"""

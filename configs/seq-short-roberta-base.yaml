@@ -1,0 +1,147 @@
+fold: 0
+csvs_root: /path/to/csvs/tcga-brca/x20-efficientnet
+test: true
+defaults:
+  - override hydra/launcher: submitit_slurm
+hydra:
+  run:
+    dir: outputs/tcga-brca/fold_${fold}/${now:%Y-%m-%d}/${now:%H-%M-%S} 
+  sweep:
+    dir: outputs/tcga-brca/fold_${fold}/${now:%Y-%m-%d}/${now:%H-%M-%S} 
+    subdir: ${hydra.job.num}
+  launcher:
+    nodes: 1
+    tasks_per_node: 1
+    gres: gpu:1
+    cpus_per_task: 16
+    timeout_min: 60000
+    array_parallelism: 10
+trainer:
+  _target_: lightning.pytorch.Trainer
+  enable_checkpointing: true
+  max_epochs: 100
+  accelerator: gpu
+  precision: 16
+  strategy: auto
+  num_nodes: 1
+  devices: 1
+  callbacks:
+  - _target_: lightning.pytorch.callbacks.GradientAccumulationScheduler
+    scheduling: 
+      0: 32
+  - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    save_top_k: 1
+    monitor: val_loss_epoch
+    mode: min
+    every_n_epochs: 1
+    dirpath: checkpoints
+  logger:
+    - _target_: lightning.pytorch.loggers.tensorboard.TensorBoardLogger
+      save_dir: tb_logs
+      name: tcga-brca
+  log_every_n_steps: 5
+datamodule:
+  _target_: src.data.lit_dataloaders_container.LitDataloadersContainer
+  train_dataloader:
+    _target_: torch.utils.data.DataLoader
+    dataset:
+      _target_: src.data.csv_dataset.CSVDataset
+      csv_file: ${csvs_root}/train_${fold}.csv
+      fn_col: filename
+      lbl_col: label
+      transform:
+        _target_: src.data.utils.unpickle_dict_and_get_value
+        _partial_: true
+        mode: rb
+        key: features
+    batch_size: 1
+    num_workers: 4
+    prefetch_factor: 2
+  val_dataloader:
+    - _target_: torch.utils.data.DataLoader 
+      dataset:
+        _target_: src.data.csv_dataset.CSVDataset
+        csv_file: ${csvs_root}/val_${fold}.csv
+        fn_col: filename
+        lbl_col: label
+        transform:
+          _target_: src.data.utils.unpickle_dict_and_get_value
+          _partial_: true
+          mode: rb
+          key: features
+      batch_size: 1
+      num_workers: 4
+      prefetch_factor: 2    
+  test_dataloader:
+      _target_: torch.utils.data.DataLoader
+      dataset:
+        _target_: src.data.csv_dataset.CSVDataset
+        csv_file: ${csvs_root}/test_${fold}.csv
+        fn_col: filename
+        lbl_col: label
+        transform:
+          _target_: src.data.utils.unpickle_dict_and_get_value
+          _partial_: true
+          mode: rb
+          key: features
+      batch_size: 1
+      num_workers: 4
+      prefetch_factor: 2
+module:
+  _target_: src.models.lit_model.LitModel
+  model:
+    _target_: src.models.adapted_transformers.AdaptedModel
+    embed_dim: 768
+    seq_shortener:
+      _target_: src.models.adapted_transformers.MHASequenceShortenerWithLN
+      target_len: 256
+      embed_dim: 768
+      kdim: 1280 
+      vdim: 1280
+      num_heads: 4
+      batch_first: true
+    model:
+      _target_: src.models.adapted_transformers.freeze_model
+      model:
+        _target_: transformers.AutoModelForSequenceClassification.from_pretrained
+        pretrained_model_name_or_path: roberta-base
+        num_labels: 2
+  optimizer_config:
+    optimizer:
+      _target_: torch.optim.Adam 
+      _partial_: true
+      lr: 5.e-5
+      weight_decay: 0.00005
+    lr_scheduler:
+      scheduler:
+        _target_: transformers.get_cosine_schedule_with_warmup
+        _partial_: true
+        num_warmup_steps: 10
+        num_training_steps: 200
+        num_cycles: 2
+      interval: epoch
+  loss_function:
+    _target_: torch.nn.CrossEntropyLoss
+    weight:
+      _target_: torch.tensor
+      _args_:
+      - - 0.60261708
+        - 2.93624161
+  val_step_metrics:
+  - val_loss:
+      _target_: torch.nn.functional.cross_entropy
+      _partial_: true
+  val_epoch_metrics:
+  - val_macro_auroc:
+      _target_: torchmetrics.functional.auroc
+      _partial_: true
+      task: multiclass
+      average: macro
+      num_classes: 2
+  test_epoch_metrics:
+  - test_macro_auroc:
+      _target_: torchmetrics.functional.auroc
+      _partial_: true
+      task: multiclass
+      average: macro
+      num_classes: 2

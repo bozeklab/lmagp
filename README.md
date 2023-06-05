@@ -35,5 +35,5 @@ We use [Hydra]() and [PyTorch-Lightning]() for training, and every hyperparamete
 ```
 # conda env create -f env.yaml
 conda activate lmagp-env
-python3 train_classifier.py -cn configs -cn seq-short-roberta-base.yaml ++csvs_root=/path/to/the/csvs ++fold=0
+python3 train_classifier.py -cp configs -cn seq-short-roberta-base.yaml ++csvs_root=/path/to/the/csvs ++fold=0
 ```

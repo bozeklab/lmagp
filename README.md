@@ -37,3 +37,11 @@ We use [Hydra]() and [PyTorch-Lightning]() for training, and every hyperparamete
 conda activate lmagp-env
 python3 train_classifier.py -cp configs -cn seq-short-roberta-base.yaml ++csvs_root=/path/to/the/csvs ++fold=0
 ```
+
+### Making heatmaps:
+Once the model was trained, it is possible to make attention rollout heatmaps for the test set of the configuration file:
+```
+python3 make_attention_rollout.py -cp configs -cn seq-short-roberta-base.yaml \
+    ++hydra.run.dir=outputs/attention_heatmaps/${now:%Y-%m-%d}/${now:%H-%M-%S} \
+    ++checkpoint=path/to/checkpoint.ckpt
+```

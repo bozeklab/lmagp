@@ -10,9 +10,9 @@ Each sample in the dataset should be a python dict with the following keys:
 - indices: an array of indices `(j,i)` that indicates the indices of the patches (feature vectors) in the tiled WSI. Should have the same number of elements as `features`
 
 Usage:
-$ python -cp path/to/config -cn config_name \
-    +hydra.run.dir=outputs/attention_heatmaps/${now:%Y-%m-%d}/${now:%H-%M-%S} \
-    +checkpoint=path/to/checkpoint.ckpt
+$ python make_attention_rollout.py -cp path/to/config -cn config_name \
+    ++hydra.run.dir=outputs/attention_heatmaps/${now:%Y-%m-%d}/${now:%H-%M-%S} \
+    ++checkpoint=path/to/checkpoint.ckpt
 
 """
 
